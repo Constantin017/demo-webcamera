@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Demo Scanner Finger</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    #camera,
+    #photo,
+    #finger-photo {
+      border: 1px solid black;
+      box-shadow: 2px 2px 3px black;
+      width: 320px;
+      height: 240px;
+      margin: 0 0 20px 0;
+    }
+
+    #canvas {
+      display: none;
+    }
+  </style>
+</head>
+
+<body class="bg-gray-100">
+
+  <!-- Main Content -->
+  <main class="container mx-auto px-6 py-8">
+    <section class="mb-12">
+      <h1 class="text-4xl font-bold text-gray-800 mb-4">Demo</h1>
+      <p class="text-gray-600">Make photo of your finger.</p>
+    </section>
+
+    <section class="card min-w-0 max-w-md px-6 py-8">
+      <h2 class="mb-5 text-2xl font-extrabold tracking-tight text-black-900">Just a video from camera</h2>
+      <!-- Camera view-->
+      <video id="camera" width="640" height="480" autoplay></video>
+      <canvas id="canvas" width="640" height="480"></canvas>
+      <!-- Button -->
+      <button id="snap" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">Make a
+        photo</button>
+      <button id="video-mask" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">Place a mask</button>
+    </section>
+    <section class="card min-w-0 max-w-md px-6 py-8">
+      <h2 class="mb-5 text-2xl font-extrabold tracking-tight text-black-900">Just a photo from camera</h2>
+      <!-- Photo view-->
+      <img id="photo" alt="Photo from camera">
+      <!-- Button -->
+      <button id="clear" class="bg-yellow-500 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded">Clear</button>
+      <button id="photo-mask" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">Place a mask</button>
+    </section>
+    <section class="card min-w-0 max-w-md px-6 py-8">
+      <h2 class="mb-5 text-2xl font-extrabold tracking-tight text-black-900">Just a finger from photo</h2>
+      <!-- Finger view-->
+      <img id="finger-photo" alt="Black and white finger photo">
+      <!-- Button -->
+      <button id="black" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">Make a
+        fingerprint</button>
+    </section>
+  </main>
+
+</body>
+
+</html>
+<script>
+  let width = 320;
+  let height = 0;
+
+  const streaming = false;
+
+  let video = document.getElementById('camera');
+  let canvas = document.getElementById('canvas');
+  let photo = document.getElementById('photo');
+  let fingerprint = document.getElementById('finger-photo');
+  let startButton = document.getElementById('snap');
+  let clearButton = document.getElementById('clear');
+  let videoMaskButton = document.getElementById('video-mask');
+  let photoMaskButton = document.getElementById('photo-mask');
+  let blackButton = document.getElementById('black');
+
+  video.addEventListener(
+    "canplay",
+    (ev) => {
+      if (!streaming) {
+        height = (video.videoHeight / video.videoWidth) * width;
+
+        video.setAttribute("width", width);
+        video.setAttribute("height", height);
+        canvas.setAttribute("width", width);
+        canvas.setAttribute("height", height);
+        streaming = true;
+      }
+    },
+    false,
+  );
+
+  startButton.addEventListener(
+    "click",
+    (ev) => {
+      takePicture();
+      ev.preventDefault();
+    },
+  );
+
+  clearButton.addEventListener(
+    "click",
+    (ev) => {
+      clearPhoto();
+      ev.preventDefault();
+    },
+    false,
+  )
+
+  navigator.mediaDevices
+    .getUserMedia({ video: true, audio: false })
+    .then((stream) => {
+      video.srcObject = stream;
+      video.play();
+    })
+    .catch((err) => {
+      console.error(`An error occurred: ${err}`);
+    });
+
+  function takePicture() {
+    width = video.videoWidth;
+    height = (video.videoHeight / video.videoWidth) * width;
+
+    canvas.width = width;
+    canvas.height = height;
+
+    canvas.getContext("2d").drawImage(video, 0, 0, width, height);
+
+    const data = canvas.toDataURL("image/png");
+    photo.setAttribute("src", data);
+
+  }
+
+  function clearPhoto() {
+    const context = canvas.getContext("2d");
+    context.fillStyle = "#FFF";
+    context.fillRect(0, 0, canvas.width, canvas.height);
+
+    const data = canvas.toDataURL("image/png");
+    photo.setAttribute("src", data);
+  }
+
+    videoMaskButton.addEventListener('click', () => {
+      const svg = makeSVGMask();
+      video.insertAdjacentElement('afterend', svg);
+    });
+
+    photoMaskButton.addEventListener('click', () => {
+      const svg = makeSVGMask();
+      photo.insertAdjacentElement('afterend', svg);
+    });
+
+    function makeSVGMask() {
+      // Create SVG element
+      const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+
+      svg.setAttribute("width", "320");
+      svg.setAttribute("height", "240");
+      svg.style.position = "absolute";
+      svg.style.marginTop = "-240px";
+
+      // Create mask path
+      const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      path.setAttribute("d", "M160,120 m-60,0 a60,60 0 1,0 120,0 a60,60 0 1,0 -120,0");
+      path.setAttribute("fill", "none");
+      path.setAttribute("stroke", "red");
+      path.setAttribute("stroke-width", "2");
+
+      // Add path to SVG
+      svg.appendChild(path);
+
+      return svg;
+    }
+
+  blackButton.addEventListener(
+    "click",
+    (ev) => {
+      makePhotoBlack();
+      ev.preventDefault();
+    },
+  );
+
+  function makePhotoBlack() {
+    const context = canvas.getContext("2d");
+    const imageData = context.getImageData(0, 0, width, height);
+    const data = imageData.data;
+
+    for (let i = 0; i < data.length; i += 4) {
+      const avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
+      data[i] = avg;
+      data[i + 1] = avg;
+      data[i + 2] = avg;
+    }
+
+    imageData.data = reverseColors(imageData);
+
+    context.putImageData(imageData, 0, 0);
+    const dataURL = canvas.toDataURL("image/png");
+    fingerprint.setAttribute("src", dataURL);
+  }
+
+  let reverseColors = ({data}) => {
+  console.log(data)
+  for (i = 0; i < data.length; i += 4) {
+    data[i] = 255 - data[i];
+    data[i + 1] = 255 - data[i + 1];
+    data[i + 2] = 255 - data[i + 2];
+    data[i + 3] = 255;
+  }
+  return data
+}
+
+</script>
